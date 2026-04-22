@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>openclaw · face</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #0d0d0d;
+    color: #e0e0e0;
+    font-family: -apple-system, "SF Pro Display", "Helvetica Neue", sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    gap: 40px;
+    overflow: hidden;
+  }
+
+  /* ── Emoji face ───────────────────────────────────────── */
+  #face-wrap {
+    position: relative;
+    transition: transform 0.4s cubic-bezier(.34,1.56,.64,1),
+                filter 0.6s ease;
+  }
+
+  #emoji {
+    font-size: 140px;
+    line-height: 1;
+    text-align: center;
+    transition: opacity 0.15s ease;
+    user-select: none;
+    filter: drop-shadow(0 0 40px rgba(100,140,255,0.15));
+  }
+
+  /* ── Status bar ───────────────────────────────────────── */
+  #status-bar {
+    width: 340px;
+    background: #141418;
+    border: 1px solid #222;
+    border-radius: 14px;
+    padding: 18px 22px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    font-size: 13px;
+    min-height: 80px;
+  }
+
+  #state-label {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    color: #555;
+    transition: color 0.4s ease;
+  }
+
+  #task-label {
+    color: #bbb;
+    font-size: 14px;
+    line-height: 1.5;
+    min-height: 20px;
+    transition: opacity 0.3s ease;
+  }
+
+  #progress-text {
+    color: #555;
+    font-size: 11px;
+    font-family: "SF Mono", "Monaco", "Consolas", monospace;
+    min-height: 14px;
+    transition: opacity 0.3s ease;
+  }
+
+  /* Connection dot */
+  #conn-dot {
+    position: fixed;
+    top: 16px;
+    right: 16px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #333;
+    transition: background 0.4s ease;
+  }
+  #conn-dot.connected { background: #3a3; }
+  #conn-dot.error     { background: #a33; }
+
+  /* ── State-specific glow ──────────────────────────────── */
+  body.sleeping #emoji { filter: drop-shadow(0 0 20px rgba(80,80,120,0.1)); opacity: 0.5; }
+  body.sleeping #state-label { color: #444; }
+
+  body.idle #emoji { filter: drop-shadow(0 0 30px rgba(100,140,255,0.2)); }
+  body.idle #state-label { color: #6688bb; }
+
+  body.alert #emoji { filter: drop-shadow(0 0 40px rgba(160,170,255,0.35)); }
+  body.alert #state-label { color: #8899ff; }
+
+  body.thinking #emoji { filter: drop-shadow(0 0 35px rgba(220,150,50,0.3)); }
+  body.thinking #state-label { color: #cc8833; }
+
+  body.happy #emoji { filter: drop-shadow(0 0 40px rgba(50,200,100,0.3)); }
+  body.happy #state-label { color: #44cc88; }
+
+  body.error #emoji { filter: drop-shadow(0 0 35px rgba(220,60,60,0.3)); }
+  body.error #state-label { color: #cc4444; }
+
+  /* ── Animations ───────────────────────────────────────── */
+
+  /* idle: gentle float */
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50%       { transform: translateY(-6px); }
+  }
+  body.idle #face-wrap { animation: float 3s ease-in-out infinite; }
+
+  /* alert: bounce in */
+  @keyframes bounce-in {
+    0%   { transform: scale(0.8); }
+    50%  { transform: scale(1.12); }
+    100% { transform: scale(1); }
+  }
+  body.alert #face-wrap { animation: bounce-in 0.45s cubic-bezier(.34,1.56,.64,1); }
+
+  /* thinking: subtle pulse */
+  @keyframes think-pulse {
+    0%, 100% { transform: scale(1); }
+    50%       { transform: scale(1.03); }
+  }
+  body.thinking #face-wrap { animation: think-pulse 1.6s ease-in-out infinite; }
+
+  /* happy: wiggle */
+  @keyframes wiggle {
+    0%, 100% { transform: rotate(0deg); }
+    20%       { transform: rotate(-6deg); }
+    40%       { transform: rotate(6deg); }
+    60%       { transform: rotate(-4deg); }
+    80%       { transform: rotate(3deg); }
+  }
+  body.happy #face-wrap { animation: wiggle 0.6s ease; }
+
+  /* error: shake */
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    20%       { transform: translateX(-8px); }
+    40%       { transform: translateX(8px); }
+    60%       { transform: translateX(-4px); }
+    80%       { transform: translateX(4px); }
+  }
+  body.error #face-wrap { animation: shake 0.5s ease; }
+
+  /* ── Widget / Dynamic Island mode ─────────────────────── */
+  body.widget-mode {
+    background: transparent;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 0;
+    padding: 0;
+    height: 100%;
+    -webkit-app-region: drag;
+  }
+  body.widget-mode #conn-dot { display: none; }
+  body.widget-mode #emoji {
+    font-size: 20px;
+    line-height: 38px;
+  }
+  body.widget-mode #face-wrap {
+    flex-shrink: 0;
+    padding: 0 6px 0 12px;
+    display: flex;
+    align-items: center;
+    height: 100%;
+  }
+  body.widget-mode #status-bar {
+    width: auto;
+    flex: 1;
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    padding: 0 12px 0 0;
+    min-height: 0;
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-start;
+    height: 100%;
+    gap: 0;
+  }
+  body.widget-mode #state-label {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0;
+    color: #eee;
+  }
+  body.widget-mode #task-label {
+    font-size: 9px;
+    color: #999;
+    max-width: 120px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-height: 0;
+    line-height: 1.2;
+  }
+  body.widget-mode #progress-text { display: none; }
+
+  /* widget: no vertical float, only subtle scale */
+  body.widget-mode.idle #face-wrap { animation: none; }
+  body.widget-mode.alert #face-wrap { animation: bounce-in 0.4s ease; }
+  body.widget-mode.thinking #emoji { animation: think-pulse 1.6s ease-in-out infinite; }
+  body.widget-mode.happy #face-wrap { animation: wiggle 0.5s ease; }
+  body.widget-mode.error #face-wrap { animation: shake 0.4s ease; }
+</style>
+</head>
+<body class="sleeping">
+
+<div id="conn-dot"></div>
+
+<div id="face-wrap">
+  <div id="emoji">😴</div>
+</div>
+
+<!-- ── Status bar ───────────────────────────────────────────────────────── -->
+<div id="status-bar">
+  <div id="state-label">休眠中</div>
+  <div id="task-label"></div>
+  <div id="progress-text"></div>
+</div>
+
+<script>
+// ── State machine ─────────────────────────────────────────────────────────────
+
+const STATES = {
+  sleeping:  { emoji: '😴', label: '休眠中' },
+  idle:      { emoji: '😊', label: '待命' },
+  alert:     { emoji: '👀', label: '收到消息' },
+  thinking:  { emoji: '🤔', label: '思考中…' },
+  happy:     { emoji: '😄', label: '搞定了' },
+  error:     { emoji: '😰', label: '出错了' },
+};
+
+let currentState = 'sleeping';
+let stateTimer = null;
+let currentTask = '';
+
+function setState(name, taskLabel, progressText, agentName) {
+  if (stateTimer) { clearTimeout(stateTimer); stateTimer = null; }
+
+  const cfg = STATES[name];
+  if (!cfg) return;
+  currentState = name;
+
+  document.body.className = isWidget ? 'widget-mode ' + name : name;
+  document.getElementById('emoji').textContent = cfg.emoji;
+
+  // Widget mode: show agent name after state label
+  const stateLabel = (isWidget && agentName)
+    ? `${cfg.label} · ${agentName}`
+    : cfg.label;
+  document.getElementById('state-label').textContent = stateLabel;
+
+  if (taskLabel !== undefined) {
+    document.getElementById('task-label').textContent = taskLabel || '';
+    currentTask = taskLabel || '';
+  }
+  if (progressText !== undefined) {
+    document.getElementById('progress-text').textContent = progressText || '';
+  }
+
+  if (name === 'happy' || name === 'error') {
+    stateTimer = setTimeout(() => setState('idle', '', '', ''), 3000);
+  }
+}
+
+// ── WebSocket ──────────────────────────────────────────────────────────────────
+
+const dot = document.getElementById('conn-dot');
+let ws, reconnectTimer;
+
+function connect() {
+  ws = new WebSocket(`ws://localhost:${cfgWsPort}`);
+
+  ws.onopen = () => {
+    dot.className = 'connected';
+    if (reconnectTimer) { clearInterval(reconnectTimer); reconnectTimer = null; }
+    setState('idle');
+  };
+
+  ws.onclose = () => {
+    dot.className = 'error';
+    setState('sleeping');
+    document.getElementById('task-label').textContent = 'disconnected · reconnecting…';
+    reconnectTimer = setTimeout(connect, 2000);
+  };
+
+  ws.onerror = () => {
+    dot.className = 'error';
+  };
+
+  ws.onmessage = (e) => {
+    let ev;
+    try { ev = JSON.parse(e.data); } catch { return; }
+    handleEvent(ev);
+  };
+}
+
+let AGENT_NAMES = {};
+let cfgWsPort = 7789;
+
+// Load config from server
+fetch('/config').then(r => r.json()).then(cfg => {
+  AGENT_NAMES = cfg.agent_names || {};
+  cfgWsPort = cfg.ws_port || 7789;
+  // Reconnect with correct WS port if different
+  if (cfgWsPort !== 7789 && ws) { ws.close(); }
+}).catch(() => {});
+
+function handleEvent(ev) {
+  const label = ev.label || ev.text || '';
+  const agent = ev.agent || '';
+  const tag = agent ? `[${agent.split('-').pop()}]` : '';
+  const shortName = AGENT_NAMES[agent] || '';
+
+  switch (ev.type) {
+
+    case 'connected':
+      setState('idle', '', 'online', '');
+      break;
+
+    case 'message_received':
+      setState('alert', label, `${tag} message received`, shortName);
+      break;
+
+    case 'thinking':
+      setState('thinking', label, `${tag} thinking…`, shortName);
+      break;
+
+    case 'done':
+      setState('happy', label, `${tag} done`, shortName);
+      if (isWidget && window.webkit?.messageHandlers?.shake) {
+        window.webkit.messageHandlers.shake.postMessage('done');
+      }
+      break;
+
+    case 'task_error':
+      setState('error', label, `${tag} error`, shortName);
+      break;
+
+    case 'idle':
+      setState('idle', '', '', '');
+      break;
+  }
+}
+
+// ── Boot ──────────────────────────────────────────────────────────────────────
+
+const isWidget = location.search.includes('widget');
+if (isWidget) document.body.classList.add('widget-mode');
+connect();
+</script>
+</body>
+</html>
