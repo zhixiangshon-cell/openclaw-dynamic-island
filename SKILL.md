@@ -26,14 +26,22 @@ macOS Dynamic Island 风格的多 Agent 状态监控桌面小组件。
 
 ## 安装
 
+一键安装（检查环境 + 编译 widget + 创建配置）：
+
 ```bash
-pip3 install websockets
+cd ~/.openclaw/skills/dynamic-island
+bash setup.sh
 ```
+
+安装脚本会自动：
+- 检查 macOS、Swift、Python3 环境
+- 安装 websockets 依赖
+- 编译 Swift widget
+- 创建 config.json 配置文件
 
 ## 启动
 
 ```bash
-cd ~/.openclaw/skills/dynamic-island
 ./start.sh
 ```
 
@@ -78,10 +86,11 @@ cp config.example.json config.json
 ## 架构
 
 ```
+setup.sh        — 一键安装脚本（环境检查 + 编译 + 配置）
+start.sh        — 启动/停止脚本
 server.py       — 监控 agent 会话 JSONL 文件，通过 WebSocket 推送事件
 index.html      — 渲染 emolog 图标 + 多 Agent UI
 widget.swift    — macOS 原生药丸窗口（NSPanel + 毛玻璃 + hover 检测）
-start.sh        — 启动/停止脚本
 emolog/         — emolog 自定义图标
 config.json     — 本地配置（git-ignored）
 ```
