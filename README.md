@@ -1,6 +1,6 @@
 # OpenClaw Dynamic Island
 
-macOS Dynamic Island style widget for [OpenClaw](https://github.com/nicepkg/openclaw) — shows real-time AI agent status on your desktop.
+macOS Dynamic Island style widget for [OpenClaw](https://github.com/nicepkg/openclaw) — shows real-time multi-agent status on your desktop, with custom emolog icons.
 
 ![preview](https://img.shields.io/badge/macOS-13%2B-blue) ![license](https://img.shields.io/badge/license-MIT-green)
 
@@ -8,14 +8,15 @@ macOS Dynamic Island style widget for [OpenClaw](https://github.com/nicepkg/open
 
 A translucent, frosted-glass pill floats at the top center of your screen, just like iPhone's Dynamic Island. It monitors OpenClaw agent session files and displays live status:
 
-| State | Emoji | Meaning |
-|-------|-------|---------|
-| Sleeping | `😴` | Not connected |
-| Idle | `😊` | Ready, waiting |
-| Alert | `👀` | Message received |
-| Thinking | `🤔` | Processing / tool call |
-| Done | `😄` | Task completed (window shakes!) |
-| Error | `😰` | Something went wrong |
+| State | Icon | Meaning |
+|-------|------|---------|
+| Sleeping / Idle | ![idle](emolog/idle.png) | Not connected / Ready |
+| Alert | ![alert](emolog/alert.png) | Message received |
+| Thinking | ![thinking](emolog/thinking.png) | Processing / tool call |
+| Done | ![done](emolog/done.png) | Task completed (window shakes!) |
+| Error | ![error](emolog/error.png) | Something went wrong |
+
+> Icons powered by [emolog](https://apps.apple.com/app/emolog/id6443809191) — cute emoji for your Dynamic Island.
 
 When multiple agents are running, the agent name is shown next to the status.
 
@@ -37,7 +38,7 @@ pip3 install websockets
 
 ```bash
 # 1. Clone
-git clone https://github.com/nicepkg/openclaw-dynamic-island.git
+git clone https://github.com/zhixiangshon-cell/openclaw-dynamic-island.git
 cd openclaw-dynamic-island
 
 # 2. Configure
