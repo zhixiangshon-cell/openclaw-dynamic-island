@@ -12,6 +12,7 @@ import os
 import glob
 import time
 import threading
+import subprocess
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from pathlib import Path
 
@@ -75,6 +76,7 @@ class Handler(BaseHTTPRequestHandler):
             payload = json.dumps({
                 "ws_port": WS_PORT,
                 "agent_names": CFG.get("agent_names", {}),
+                "agent_links": CFG.get("agent_links", {}),
             }, ensure_ascii=False).encode("utf-8")
             self.send_response(200)
             self.send_header("Content-Type", "application/json; charset=utf-8")
@@ -82,6 +84,19 @@ class Handler(BaseHTTPRequestHandler):
             self.send_header("Cache-Control", "no-cache")
             self.end_headers()
             self.wfile.write(payload)
+        elif path.startswith("/emolog/"):
+            img_path = SCRIPT_DIR / path.lstrip("/")
+            if img_path.exists():
+                content = img_path.read_bytes()
+                self.send_response(200)
+                self.send_header("Content-Type", "image/png")
+                self.send_header("Content-Length", str(len(content)))
+                self.send_header("Cache-Control", "max-age=86400")
+                self.end_headers()
+                self.wfile.write(content)
+            else:
+                self.send_response(404)
+                self.end_headers()
         else:
             self.send_response(404)
             self.end_headers()
@@ -175,14 +190,39 @@ def parse_jsonl_line(line: str):
                             # Format: "SenderName: actual message"
                             colon = line.find(": ")
                             if colon != -1:
-                                text = line[colon + 2:].strip()[:80]
+                                text = line[colon + 2:].strip()
                             else:
-                                text = line.strip()[:80]
+                                text = line.strip()
                     break
         elif isinstance(content, str):
-            text = content[:80]
+            text = content
+        # Strip reply-to prefix BEFORE truncation
+        if text and "[Replying to:" in text:
+            import re
+            text = re.sub(r'\[Replying to:[^\]]*\]?\s*', '', text, flags=re.DOTALL).strip()
+        # Now truncate
         if text:
-            return {"type": "message_received", "text": text}
+            text = text[:80]
+        # Replace image/file/media metadata with friendly label
+        if text:
+            if "![image]" in text:
+                text = text.replace("![image]", "").strip()
+            if "image_key" in text or "img_v3_" in text:
+                text = "[发送了一张图片]"
+            elif "file_key" in text or "file_v3_" in text:
+                # Try to extract file_name
+                import re
+                m = re.search(r'"file_name"\s*:\s*"([^"]+)"', text)
+                text = f"[发送了文件] {m.group(1)}" if m else "[发送了一个文件]"
+        # Strip trailing system/metadata content like "[System: ...]"
+        if text:
+            bracket = text.find("[System:")
+            if bracket == -1:
+                bracket = text.find("[system:")
+            if bracket > 0:
+                text = text[:bracket].strip()
+            if text:
+                return {"type": "message_received", "text": text}
 
     elif role == "assistant":
         # Check what the assistant is doing
@@ -201,16 +241,24 @@ def parse_jsonl_line(line: str):
                         text_preview = block.get("text", "")[:60]
 
         if has_tool_call:
-            return {"type": "thinking", "label": "executing tool…"}
+            return {"type": "thinking", "label": "正在调用工具…"}
         elif has_text and stop_reason == "stop":
+            # Check if the response mentions failure
+            fail_keywords = ["挂了", "失败", "出错", "报错", "异常", "无法", "不行",
+                             "抱歉", "sorry", "error", "failed", "fail", "出问题",
+                             "超时", "timeout", "崩", "错误", "rate limit", "rate_limit",
+                             "限流", "请求过多", "too many requests", "429"]
+            is_fail = any(kw in text_preview.lower() for kw in fail_keywords)
+            if is_fail:
+                return {"type": "task_error", "label": text_preview}
             return {"type": "done", "label": text_preview}
         elif has_text and stop_reason == "toolUse":
-            return {"type": "thinking", "label": "using tool…"}
+            return {"type": "thinking", "label": "正在使用工具…"}
 
     elif role == "toolResult":
         is_error = msg.get("isError", False)
         if is_error:
-            return {"type": "task_error", "label": "tool error"}
+            return {"type": "task_error", "label": "工具调用出错"}
 
     return None
 
@@ -292,6 +340,11 @@ async def session_watcher():
                     idle_since = now
                     print(f"[{agent}] {event['type']}: {event.get('label', event.get('text', ''))[:40]}")
                     await broadcast_queue.put(event)
+                    # Play sound for done/error
+                    if event["type"] == "done":
+                        subprocess.Popen(["afplay", "/System/Library/Sounds/Glass.aiff"])
+                    elif event["type"] == "task_error":
+                        subprocess.Popen(["afplay", "/System/Library/Sounds/Basso.aiff"])
 
         # If idle for 10+ seconds after activity, send idle
         if had_activity is False and (now - idle_since) > 10:

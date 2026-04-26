@@ -14,9 +14,10 @@ stop() {
       rm -f "$pf"
     fi
   done
-  # Fallback: kill by port / process name
+  # Fallback: kill by port / process name / all widget processes
   lsof -ti:7788 -ti:7789 2>/dev/null | xargs kill -9 2>/dev/null
-  pkill -f "swift widget.swift" 2>/dev/null
+  pkill -f "swift.*widget" 2>/dev/null
+  pkill -f "widget-compiled" 2>/dev/null
   echo "[openclaw-face] stopped"
 }
 
