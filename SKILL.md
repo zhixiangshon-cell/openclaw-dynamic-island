@@ -2,23 +2,11 @@
 name: dynamic-island
 slug: dynamic-island
 version: 1.0.0
-description: >
-  macOS Dynamic Island 桌面小组件，实时显示多 Agent 工作状态。
-  毛玻璃药丸窗口悬浮在屏幕顶部，5种状态自动切换（待命、收到消息、思考中、搞定了、出错了）。
-  鼠标悬停展开查看所有 Agent 列表和最近对话。
-  Triggers: "灵动岛", "桌面小组件", "dynamic island", "agent状态", "启动灵动岛", "打开灵动岛"
+description: macOS Dynamic Island desktop widget for OpenClaw. Real-time multi-agent status monitoring with frosted glass pill UI. Shows 5 states: idle, alert, thinking, done, error. Hover to expand agent list with recent messages. Triggers: "dynamic island", "灵动岛", "桌面小组件", "agent状态", "启动灵动岛", "打开灵动岛"
 homepage: https://github.com/zhixiangshon-cell/openclaw-dynamic-island
 metadata:
   openclaw:
     homepage: https://github.com/zhixiangshon-cell/openclaw-dynamic-island
-  clawdbot:
-    emoji: "\U0001F3DD\uFE0F"
-    requires:
-      bins: ["python3", "swiftc"]
-      env: []
-    os: ["darwin"]
-    configPaths: ["~/.openclaw/agents"]
-    configPaths.optional: ["~/.openclaw/face/config.json"]
 ---
 
 # OpenClaw Dynamic Island
